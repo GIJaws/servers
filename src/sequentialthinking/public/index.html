@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sequential Thinking Visualization</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Sequential Thinking Visualization</h1>
+  </header>
+  
+  <div class="container">
+    <div class="sidebar">
+      <div class="stats">
+        <h3>Statistics</h3>
+        <div id="stats-content">
+          <p>Total thoughts: <span id="total-thoughts">0</span></p>
+          <p>Branches: <span id="total-branches">0</span></p>
+        </div>
+      </div>
+      <div class="legend">
+        <h3>Legend</h3>
+        <div class="legend-item">
+          <div class="legend-color main-thought"></div>
+          <div>Main Thought</div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color revision"></div>
+          <div>Revision</div>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color branch"></div>
+          <div>Branch</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="thought-container" id="thought-container">
+      <!-- Thoughts will be added here dynamically -->
+      <div class="loading">Waiting for thoughts...</div>
+    </div>
+  </div>
+  
+  <script src="script.js"></script>
+</body>
+</html>

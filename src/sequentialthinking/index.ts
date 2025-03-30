@@ -9,6 +9,27 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 // Fixed chalk import for ESM
 import chalk from 'chalk';
+// Import yargs for command-line argument handling
+import yargs from 'yargs';
+import { hideBin } from 'yargs/helpers';
+// Import the WebUIServer class
+import { WebUIServer } from './webui.js';
+
+// Parse command-line arguments
+const yargsParser = yargs(hideBin(process.argv))
+  .option('web-ui', {
+    alias: 'ui',
+    type: 'boolean',
+    description: 'Enable web UI visualization',
+    default: false
+  })
+  .option('port', {
+    alias: 'p',
+    type: 'number',
+    description: 'Port for the web UI server',
+    default: 3000
+  })
+  .help();
 
 interface ThoughtData {
   thought: string;
@@ -25,6 +46,18 @@ interface ThoughtData {
 class SequentialThinkingServer {
   private thoughtHistory: ThoughtData[] = [];
   private branches: Record<string, ThoughtData[]> = {};
+  private webUIServer: WebUIServer | null = null;
+
+  constructor(enableWebUI: boolean = false, port: number = 3000) {
+    if (enableWebUI) {
+      this.webUIServer = new WebUIServer(port);
+      this.webUIServer.start();
+    }
+  }
+
+  public setWebUIServer(webUIServer: WebUIServer): void {
+    this.webUIServer = webUIServer;
+  }
 
   private validateThoughtData(input: unknown): ThoughtData {
     const data = input as Record<string, unknown>;
@@ -102,6 +135,11 @@ class SequentialThinkingServer {
 
       const formattedThought = this.formatThought(validatedInput);
       console.error(formattedThought);
+
+      // Update web UI if enabled
+      if (this.webUIServer) {
+        this.webUIServer.updateThought(validatedInput);
+      }
 
       return {
         content: [{
@@ -246,32 +284,61 @@ const server = new Server(
   }
 );
 
-const thinkingServer = new SequentialThinkingServer();
+// Will be initialized in runServer
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({
-  tools: [SEQUENTIAL_THINKING_TOOL],
-}));
+async function initServer(parsedArgs: any) {
+  // Initialize the SequentialThinkingServer with web UI if enabled
+  const thinkingServer = new SequentialThinkingServer(
+    parsedArgs['web-ui'],
+    parsedArgs.port
+  );
 
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  if (request.params.name === "sequentialthinking") {
-    return thinkingServer.processThought(request.params.arguments);
-  }
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({
+    tools: [SEQUENTIAL_THINKING_TOOL],
+  }));
 
-  return {
-    content: [{
-      type: "text",
-      text: `Unknown tool: ${request.params.name}`
-    }],
-    isError: true
-  };
-});
+  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    if (request.params.name === "sequentialthinking") {
+      return thinkingServer.processThought(request.params.arguments);
+    }
 
-async function runServer() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("Sequential Thinking MCP Server running on stdio");
+    return {
+      content: [{
+        type: "text",
+        text: `Unknown tool: ${request.params.name}`
+      }],
+      isError: true
+    };
+  });
+
+  return thinkingServer;
 }
 
+async function runServer() {
+  try {
+    // Parse command-line arguments
+    const parsedArgs = await yargsParser.parseAsync();
+    
+    // Initialize server with parsed arguments
+    const thinkingServer = await initServer(parsedArgs);
+    
+    // Set up transport
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    
+    // Log startup message
+    if (parsedArgs['web-ui']) {
+      console.error(`Sequential Thinking MCP Server running on stdio with Web UI at http://localhost:${parsedArgs.port}`);
+    } else {
+      console.error("Sequential Thinking MCP Server running on stdio");
+    }
+  } catch (error) {
+    console.error("Error during server initialization:", error);
+    process.exit(1);
+  }
+}
+
+// Start the server
 runServer().catch((error) => {
   console.error("Fatal error running server:", error);
   process.exit(1);
