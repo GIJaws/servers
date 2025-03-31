@@ -1,175 +1,167 @@
 :root {
-    --main-thought-color: #4e7ae2;
-    --revision-color: #e6a700;
-    --branch-color: #4caf50;
-    --connection-color: #ccc;
-    --text-color: #333;
-    --background-color: #f5f5f5;
-    --card-background: #fff;
-  }
-  
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-  
-  body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    line-height: 1.6;
-    color: var(--text-color);
-    background-color: var(--background-color);
-  }
-  
-  header {
-    background-color: #2c3e50;
-    color: white;
-    text-align: center;
-    padding: 1rem;
-  }
-  
-  .container {
-    display: flex;
-    padding: 1rem;
-    max-width: 1400px;
-    margin: 0 auto;
-  }
-  
-  .sidebar {
-    width: 250px;
-    padding: 1rem;
-    background-color: var(--card-background);
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    margin-right: 1rem;
-  }
-  
-  .thought-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    position: relative;
-  }
-  
-  .loading {
-    text-align: center;
-    padding: 2rem;
-    color: #888;
-    font-style: italic;
-  }
-  
-  .thought-card {
-    padding: 1rem;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    background-color: var(--card-background);
-    position: relative;
-    margin-left: 30px;
-  }
-  
-  .thought-card::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: -30px;
-    width: 30px;
-    height: 2px;
-    background-color: var(--connection-color);
-  }
-  
-  .thought-card.first-thought::before {
-    display: none;
-  }
-  
-  .thought-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid #eee;
-  }
-  
-  .thought-body {
-    white-space: pre-wrap;
-  }
-  
-  .thought-card.main-thought {
-    border-left: 5px solid var(--main-thought-color);
-  }
-  
-  .thought-card.revision {
-    border-left: 5px solid var(--revision-color);
-  }
-  
-  .thought-card.branch {
-    border-left: 5px solid var(--branch-color);
-  }
-  
-  .legend {
-    margin-top: 1rem;
-  }
-  
-  .legend-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 0.5rem;
-  }
-  
-  .legend-color {
-    width: 20px;
-    height: 20px;
-    margin-right: 10px;
-    border-radius: 3px;
-  }
-  
-  .legend-color.main-thought {
-    background-color: var(--main-thought-color);
-  }
-  
-  .legend-color.revision {
-    background-color: var(--revision-color);
-  }
-  
-  .legend-color.branch {
-    background-color: var(--branch-color);
-  }
-  
-  .stats {
-    margin-bottom: 1.5rem;
-  }
-  
-  .stats h3, .legend h3 {
-    margin-bottom: 0.5rem;
-    font-size: 1.1rem;
-  }
-  
-  .thought-number {
-    font-weight: bold;
-    color: #555;
-  }
-  
-  .thought-type {
-    padding: 3px 8px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    color: white;
-  }
-  
-  .thought-type.main {
-    background-color: var(--main-thought-color);
-  }
-  
-  .thought-type.revision {
-    background-color: var(--revision-color);
-  }
-  
-  .thought-type.branch {
-    background-color: var(--branch-color);
-  }
-  
-  .thought-meta {
-    margin-top: 0.5rem;
-    font-size: 0.85rem;
-    color: #777;
-  }
+  --main-thought-border: #4e7ae2;
+  --revision-border: #ffc107; /* Changed from E6A700 for better visibility */
+  --branch-border: #28a745; /* Changed from 4CAF50 */
+  --main-thought-bg: #e7f0ff;
+  --revision-bg: #fff8e1;
+  --branch-bg: #d4edda;
+
+  --connection-color: #ccc;
+  --text-color: #333;
+  --background-color: #f8f9fa; /* Slightly lighter background */
+  --card-background: #fff;
+  --header-bg: #343a40; /* Darker header */
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: var(--text-color);
+  background-color: var(--background-color);
+  display: flex; /* Use flexbox for overall layout */
+  flex-direction: column; /* Stack header and main content vertically */
+  min-height: 100vh; /* Ensure body takes full viewport height */
+}
+
+header {
+  background-color: var(--header-bg);
+  color: white;
+  text-align: center;
+  padding: 1rem;
+  flex-shrink: 0; /* Prevent header from shrinking */
+}
+
+.container {
+  display: flex;
+  padding: 1rem;
+  max-width: 100%; /* Use full width */
+  margin: 0 auto;
+  flex-grow: 1; /* Allow container to grow and fill space */
+  overflow: hidden; /* Prevent container overflow issues */
+}
+
+.sidebar {
+  width: 250px; /* Fixed width for sidebar */
+  padding: 1rem;
+  background-color: var(--card-background);
+  border-radius: 8px; /* Slightly more rounded corners */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Softer shadow */
+  margin-right: 1rem;
+  flex-shrink: 0; /* Prevent sidebar from shrinking */
+  height: fit-content; /* Adjust height based on content */
+  max-height: calc(100vh - 4rem - 2rem); /* Limit height (viewport - header - padding) */
+  overflow-y: auto; /* Add scroll if content overflows */
+}
+
+/* Container for the vis.js graph */
+.thought-container {
+  flex-grow: 1; /* Allow graph container to fill remaining space */
+  border: 1px solid #dee2e6; /* Lighter border */
+  border-radius: 8px;
+  background-color: #fff; /* White background for the graph area */
+  position: relative; /* Needed for potential absolute positioning inside */
+  min-height: 400px; /* Ensure it has some minimum height */
+  overflow: hidden; /* vis.js handles its own scrolling/panning */
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d; /* Muted text color */
+  font-style: italic;
+  position: absolute; /* Center loading message */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.loading.error {
+    color: #dc3545; /* Red for error messages */
+}
+
+/* Legend Styles */
+.legend {
+  margin-top: 1.5rem; /* More space above legend */
+}
+
+.legend h3,
+.stats h3 {
+  margin-bottom: 0.8rem; /* More space below headings */
+  font-size: 1.1rem;
+  color: #495057; /* Darker heading color */
+  border-bottom: 1px solid #e9ecef; /* Subtle separator */
+  padding-bottom: 0.3rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.6rem; /* Adjust spacing */
+  font-size: 0.9rem; /* Slightly smaller legend text */
+}
+
+.legend-color {
+  width: 18px; /* Slightly smaller legend color box */
+  height: 18px;
+  margin-right: 10px;
+  border-radius: 4px; /* Rounded square */
+  border: 1px solid rgba(0, 0, 0, 0.1); /* Subtle border */
+}
+
+/* Match legend colors to graph node styles */
+.legend-color.main-thought {
+  background-color: var(--main-thought-bg);
+  border-color: var(--main-thought-border);
+}
+
+.legend-color.revision {
+  background-color: var(--revision-bg);
+  border-color: var(--revision-border);
+}
+
+.legend-color.branch {
+  background-color: var(--branch-bg);
+  border-color: var(--branch-border);
+}
+
+.stats {
+  margin-bottom: 1.5rem;
+}
+.stats p {
+    font-size: 0.9rem;
+    margin-bottom: 0.4rem;
+    color: #495057;
+}
+.stats span {
+    font-weight: 600; /* Bolder stats numbers */
+    color: #000;
+}
+
+/* vis.js specific overrides if needed */
+.vis-network {
+    border: none; /* Remove default vis border if present */
+    height: 100%; /* Ensure vis takes full container height */
+    width: 100%;
+}
+
+/* Style the tooltip */
+.vis-tooltip {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
+    padding: 8px !important;
+    background-color: rgba(50, 50, 50, 0.9) !important; /* Darker tooltip */
+    color: white !important;
+    border: none !important;
+    border-radius: 4px !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2) !important;
+    white-space: pre-wrap; /* Ensure newlines in title are respected */
+    max-width: 400px; /* Limit tooltip width */
+}
+
+
+/* --- Remove Old Styles --- */
+/* .thought-card, .thought-card::before, .thought-header, .thought-body, .thought-type, .thought-meta no longer needed */

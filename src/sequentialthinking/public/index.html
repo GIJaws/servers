@@ -1,24 +1,33 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sequential Thinking Visualization</title>
-  <link rel="stylesheet" href="styles.css">
+  <!-- Link to LOCAL vis.js CSS -->
+  <link href="vendor/vis-network/vis-network.min.css" rel="stylesheet" type="text/css" />
+  <!-- Link to your custom styles -->
+  <link rel="stylesheet" href="styles.css" />
+  <!-- Include Socket.io client (still from server) -->
   <script src="/socket.io/socket.io.js"></script>
+  <!-- Include LOCAL vis.js library -->
+  <script type="text/javascript" src="vendor/vis-network/vis-network.min.js"></script>
 </head>
+
+
 <body>
   <header>
     <h1>Sequential Thinking Visualization</h1>
   </header>
-  
+
   <div class="container">
     <div class="sidebar">
       <div class="stats">
         <h3>Statistics</h3>
         <div id="stats-content">
           <p>Total thoughts: <span id="total-thoughts">0</span></p>
-          <p>Branches: <span id="total-branches">0</span></p>
+          <p>Branches: <span id="total-branches">0</span></p> <!-- Note: Branch count is approximate -->
         </div>
       </div>
       <div class="legend">
@@ -29,21 +38,23 @@
         </div>
         <div class="legend-item">
           <div class="legend-color revision"></div>
-          <div>Revision</div>
+          <div>Revision (dashed line back)</div>
         </div>
         <div class="legend-item">
           <div class="legend-color branch"></div>
-          <div>Branch</div>
+          <div>Branch Start (green line from source)</div>
         </div>
       </div>
     </div>
-    
+
+    <!-- Container for the vis.js graph -->
     <div class="thought-container" id="thought-container">
-      <!-- Thoughts will be added here dynamically -->
-      <div class="loading">Waiting for thoughts...</div>
+      <!-- Graph will be rendered here by script.js -->
     </div>
   </div>
-  
+
+  <!-- Include your custom script -->
   <script src="script.js"></script>
 </body>
+
 </html>
