@@ -62,28 +62,69 @@ class SequentialThinkingServer {
   private validateThoughtData(input: unknown): ThoughtData {
     const data = input as Record<string, unknown>;
 
+    // Basic Type Checks (keep existing)
     if (!data.thought || typeof data.thought !== 'string') {
       throw new Error('Invalid thought: must be a string');
     }
-    if (!data.thoughtNumber || typeof data.thoughtNumber !== 'number') {
-      throw new Error('Invalid thoughtNumber: must be a number');
+    if (!data.thoughtNumber || typeof data.thoughtNumber !== 'number' || !Number.isInteger(data.thoughtNumber) || data.thoughtNumber < 1) {
+      throw new Error('Invalid thoughtNumber: must be a positive integer');
     }
-    if (!data.totalThoughts || typeof data.totalThoughts !== 'number') {
-      throw new Error('Invalid totalThoughts: must be a number');
+    if (!data.totalThoughts || typeof data.totalThoughts !== 'number' || !Number.isInteger(data.totalThoughts) || data.totalThoughts < 1) {
+      throw new Error('Invalid totalThoughts: must be a positive integer');
     }
     if (typeof data.nextThoughtNeeded !== 'boolean') {
       throw new Error('Invalid nextThoughtNeeded: must be a boolean');
     }
 
+    // Relational Constraint Checks (NEW)
+    const isRevision = data.isRevision as boolean | undefined;
+    const revisesThought = data.revisesThought as number | undefined;
+    const branchFromThought = data.branchFromThought as number | undefined;
+    const branchId = data.branchId as string | undefined;
+
+    if (isRevision === true && (revisesThought === undefined || typeof revisesThought !== 'number' || !Number.isInteger(revisesThought) || revisesThought < 1)) {
+      throw new Error('Invalid input: `isRevision` is true, but `revisesThought` is missing or not a positive integer.');
+    }
+    if (isRevision !== true && revisesThought !== undefined) {
+      throw new Error('Invalid input: `revisesThought` is provided, but `isRevision` is not true.');
+    }
+
+    if (branchId !== undefined && (branchFromThought === undefined || typeof branchFromThought !== 'number' || !Number.isInteger(branchFromThought) || branchFromThought < 1)) {
+      throw new Error('Invalid input: `branchId` is provided, but `branchFromThought` is missing or not a positive integer.');
+    }
+    // Optional: Add check if branchFromThought requires branchId, although a branch might conceptually start without an ID initially.
+    // if (branchFromThought !== undefined && branchId === undefined) {
+    //   console.warn('Warning: `branchFromThought` provided without `branchId`.'); // Or throw error if ID is mandatory for branching.
+    // }
+
+    // Optional type checks for optional fields if they are present
+    if (data.isRevision !== undefined && typeof data.isRevision !== 'boolean') {
+      throw new Error('Invalid isRevision: must be a boolean if provided');
+    }
+    if (data.revisesThought !== undefined && (typeof data.revisesThought !== 'number' || !Number.isInteger(data.revisesThought) || data.revisesThought < 1)) {
+      throw new Error('Invalid revisesThought: must be a positive integer if provided');
+    }
+    if (data.branchFromThought !== undefined && (typeof data.branchFromThought !== 'number' || !Number.isInteger(data.branchFromThought) || data.branchFromThought < 1)) {
+      throw new Error('Invalid branchFromThought: must be a positive integer if provided');
+    }
+    if (data.branchId !== undefined && typeof data.branchId !== 'string') {
+      throw new Error('Invalid branchId: must be a string if provided');
+    }
+    if (data.needsMoreThoughts !== undefined && typeof data.needsMoreThoughts !== 'boolean') {
+      throw new Error('Invalid needsMoreThoughts: must be a boolean if provided');
+    }
+
+
+    // Return validated data (keep existing)
     return {
       thought: data.thought,
       thoughtNumber: data.thoughtNumber,
       totalThoughts: data.totalThoughts,
       nextThoughtNeeded: data.nextThoughtNeeded,
-      isRevision: data.isRevision as boolean | undefined,
-      revisesThought: data.revisesThought as number | undefined,
-      branchFromThought: data.branchFromThought as number | undefined,
-      branchId: data.branchId as string | undefined,
+      isRevision: isRevision,
+      revisesThought: revisesThought,
+      branchFromThought: branchFromThought,
+      branchId: branchId,
       needsMoreThoughts: data.needsMoreThoughts as boolean | undefined,
     };
   }
@@ -275,7 +316,7 @@ You should:
 const server = new Server(
   {
     name: "sequential-thinking-server",
-    version: "0.2.0",
+    version: "0.2.0", // Note: Version updated in package.json, maybe update here too?
   },
   {
     capabilities: {
@@ -318,14 +359,14 @@ async function runServer() {
   try {
     // Parse command-line arguments
     const parsedArgs = await yargsParser.parseAsync();
-    
+
     // Initialize server with parsed arguments
     const thinkingServer = await initServer(parsedArgs);
-    
+
     // Set up transport
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    
+
     // Log startup message
     if (parsedArgs['web-ui']) {
       console.error(`Sequential Thinking MCP Server running on stdio with Web UI at http://localhost:${parsedArgs.port}`);
