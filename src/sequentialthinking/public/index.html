@@ -4,21 +4,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sequential Thinking Visualization</title>
-  <!-- Link to LOCAL vis.js CSS -->
-  <link href="vendor/vis-network/vis-network.min.css" rel="stylesheet" type="text/css" />
+  <title>Sequential Thinking Visualization (D3)</title>
   <!-- Link to your custom styles -->
   <link rel="stylesheet" href="styles.css" />
-  <!-- Include Socket.io client (still from server) -->
+  <!-- Include Socket.io client -->
   <script src="/socket.io/socket.io.js"></script>
-  <!-- Include LOCAL vis.js library -->
-  <script type="text/javascript" src="vendor/vis-network/vis-network.min.js"></script>
+  <!-- Include D3.js via CDN -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
-
 
 <body>
   <header>
-    <h1>Sequential Thinking Visualization</h1>
+    <h1>Sequential Thinking Visualization (D3)</h1>
   </header>
 
   <div class="container">
@@ -26,30 +23,66 @@
       <div class="stats">
         <h3>Statistics</h3>
         <div id="stats-content">
-          <p>Total thoughts: <span id="total-thoughts">0</span></p>
-          <p>Branches: <span id="total-branches">0</span></p> <!-- Note: Branch count is approximate -->
+          <p>Nodes: <span id="total-nodes">0</span></p>
+          <p>Links: <span id="total-links">0</span></p>
+          <!-- Branch count can be derived later if needed -->
         </div>
       </div>
       <div class="legend">
         <h3>Legend</h3>
         <div class="legend-item">
-          <div class="legend-color main-thought"></div>
+          <svg width="20" height="20">
+            <circle cx="10" cy="10" r="8" class="node node-main"></circle>
+          </svg>
           <div>Main Thought</div>
         </div>
         <div class="legend-item">
-          <div class="legend-color revision"></div>
-          <div>Revision (dashed line back)</div>
+          <svg width="20" height="20">
+            <circle cx="10" cy="10" r="8" class="node node-revision"></circle>
+          </svg>
+          <div>Revision</div>
         </div>
         <div class="legend-item">
-          <div class="legend-color branch"></div>
-          <div>Branch Start (green line from source)</div>
+          <svg width="20" height="20">
+            <circle cx="10" cy="10" r="8" class="node node-branch"></circle>
+          </svg>
+          <div>Branch</div>
+        </div>
+        <div class="legend-item">
+          <svg width="20" height="20">
+            <line x1="2" y1="10" x2="18" y2="10" class="link link-linear"></line>
+          </svg>
+          <div>Linear Link</div>
+        </div>
+        <div class="legend-item">
+          <svg width="20" height="20">
+            <line x1="2" y1="10" x2="18" y2="10" class="link link-branch"></line>
+          </svg>
+          <div>Branch Link</div>
+        </div>
+        <div class="legend-item">
+          <svg width="20" height="20">
+            <line x1="2" y1="10" x2="18" y2="10" class="link link-revision"></line>
+          </svg>
+          <div>Revision Link</div>
+        </div>
+      </div>
+
+      <div class="debug-controls">
+        <h3>Debug Controls</h3>
+        <button id="btn-restart-sim" class="debug-btn">Restart Sim</button>
+        <button id="btn-add-test-node" class="debug-btn">Add Test Node</button>
+        <div class="debug-info">
+          <p>Sim Status: <span id="sim-status">Stopped</span></p>
+          <p>Last Event: <span id="last-event">None</span></p>
         </div>
       </div>
     </div>
 
-    <!-- Container for the vis.js graph -->
+    <!-- Container for the D3 graph -->
     <div class="thought-container" id="thought-container">
-      <!-- Graph will be rendered here by script.js -->
+      <!-- SVG will be appended here by script.js -->
+      <div class="loading">Connecting...</div>
     </div>
   </div>
 

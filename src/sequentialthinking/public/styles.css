@@ -1,16 +1,20 @@
 :root {
-  --main-thought-border: #4e7ae2;
-  --revision-border: #ffc107; /* Changed from E6A700 for better visibility */
-  --branch-border: #28a745; /* Changed from 4CAF50 */
-  --main-thought-bg: #e7f0ff;
-  --revision-bg: #fff8e1;
-  --branch-bg: #d4edda;
+  /* D3 Colors */
+  --node-main-fill: #e7f0ff;
+  --node-main-stroke: #4e7ae2;
+  --node-revision-fill: #fff8e1;
+  --node-revision-stroke: #ffc107;
+  --node-branch-fill: #d4edda;
+  --node-branch-stroke: #28a745;
 
-  --connection-color: #ccc;
+  --link-linear-color: #aaa;
+  --link-revision-color: #ffc107;
+  --link-branch-color: #28a745;
+
   --text-color: #333;
-  --background-color: #f8f9fa; /* Slightly lighter background */
+  --background-color: #f8f9fa;
   --card-background: #fff;
-  --header-bg: #343a40; /* Darker header */
+  --header-bg: #343a40;
 }
 
 * {
@@ -19,14 +23,19 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   line-height: 1.6;
   color: var(--text-color);
   background-color: var(--background-color);
-  display: flex; /* Use flexbox for overall layout */
-  flex-direction: column; /* Stack header and main content vertically */
-  min-height: 100vh; /* Ensure body takes full viewport height */
+  display: flex;
+  flex-direction: column;
 }
 
 header {
@@ -34,134 +43,200 @@ header {
   color: white;
   text-align: center;
   padding: 1rem;
-  flex-shrink: 0; /* Prevent header from shrinking */
+  flex-shrink: 0;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .container {
   display: flex;
   padding: 1rem;
-  max-width: 100%; /* Use full width */
-  margin: 0 auto;
-  flex-grow: 1; /* Allow container to grow and fill space */
-  overflow: hidden; /* Prevent container overflow issues */
+  flex-grow: 1;
+  overflow: hidden;
 }
 
 .sidebar {
-  width: 250px; /* Fixed width for sidebar */
+  width: 250px;
   padding: 1rem;
   background-color: var(--card-background);
-  border-radius: 8px; /* Slightly more rounded corners */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08); /* Softer shadow */
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   margin-right: 1rem;
-  flex-shrink: 0; /* Prevent sidebar from shrinking */
-  height: fit-content; /* Adjust height based on content */
-  max-height: calc(100vh - 4rem - 2rem); /* Limit height (viewport - header - padding) */
-  overflow-y: auto; /* Add scroll if content overflows */
+  flex-shrink: 0;
+  overflow-y: auto; /* Allow sidebar to scroll if content overflows */
+  display: flex; /* Use flexbox for sidebar content */
+  flex-direction: column; /* Stack sidebar items vertically */
 }
 
-/* Container for the vis.js graph */
+
+/* Container for the D3 graph */
 .thought-container {
-  flex-grow: 1; /* Allow graph container to fill remaining space */
-  border: 1px solid #dee2e6; /* Lighter border */
+  flex-grow: 1;
+  border: 1px solid #dee2e6;
   border-radius: 8px;
-  background-color: #fff; /* White background for the graph area */
-  position: relative; /* Needed for potential absolute positioning inside */
-  min-height: 400px; /* Ensure it has some minimum height */
-  overflow: hidden; /* vis.js handles its own scrolling/panning */
+  background-color: #fff;
+  position: relative;
+  height: 100%;
+  width: 100%; /* Take remaining width */
+  min-height: 300px;
+  overflow: hidden; /* SVG should handle zoom/pan */
+}
+
+.thought-container svg {
+  display: block; /* Remove extra space below SVG */
+  width: 100%;
+  height: 100%;
 }
 
 .loading {
   text-align: center;
   padding: 2rem;
-  color: #6c757d; /* Muted text color */
+  color: #6c757d;
   font-style: italic;
-  position: absolute; /* Center loading message */
+  position: absolute;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
+  width: 80%; /* Ensure text wraps if long */
 }
 .loading.error {
-    color: #dc3545; /* Red for error messages */
+  color: #dc3545;
 }
 
-/* Legend Styles */
-.legend {
-  margin-top: 1.5rem; /* More space above legend */
+/* Sidebar Sections */
+.stats, .legend, .debug-controls {
+  margin-bottom: 1.5rem; /* Space out sections */
 }
-
 .legend h3,
-.stats h3 {
-  margin-bottom: 0.8rem; /* More space below headings */
+.stats h3,
+.debug-controls h3 {
+  margin-bottom: 0.8rem;
   font-size: 1.1rem;
-  color: #495057; /* Darker heading color */
-  border-bottom: 1px solid #e9ecef; /* Subtle separator */
+  color: #495057;
+  border-bottom: 1px solid #e9ecef;
   padding-bottom: 0.3rem;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  margin-bottom: 0.6rem; /* Adjust spacing */
-  font-size: 0.9rem; /* Slightly smaller legend text */
+  margin-bottom: 0.6rem;
+  font-size: 0.9rem;
 }
 
-.legend-color {
-  width: 18px; /* Slightly smaller legend color box */
-  height: 18px;
-  margin-right: 10px;
-  border-radius: 4px; /* Rounded square */
-  border: 1px solid rgba(0, 0, 0, 0.1); /* Subtle border */
+.legend-item svg {
+    margin-right: 8px;
+    flex-shrink: 0;
 }
 
-/* Match legend colors to graph node styles */
-.legend-color.main-thought {
-  background-color: var(--main-thought-bg);
-  border-color: var(--main-thought-border);
-}
 
-.legend-color.revision {
-  background-color: var(--revision-bg);
-  border-color: var(--revision-border);
-}
-
-.legend-color.branch {
-  background-color: var(--branch-bg);
-  border-color: var(--branch-border);
-}
-
-.stats {
-  margin-bottom: 1.5rem;
-}
 .stats p {
-    font-size: 0.9rem;
-    margin-bottom: 0.4rem;
-    color: #495057;
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
+  color: #495057;
 }
 .stats span {
-    font-weight: 600; /* Bolder stats numbers */
-    color: #000;
+  font-weight: 600;
+  color: #000;
 }
 
-/* vis.js specific overrides if needed */
-.vis-network {
-    border: none; /* Remove default vis border if present */
-    height: 100%; /* Ensure vis takes full container height */
-    width: 100%;
+/* Debug Controls */
+.debug-controls {
+  margin-top: auto; /* Push debug to bottom */
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
 }
 
-/* Style the tooltip */
-.vis-tooltip {
-    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif !important;
-    padding: 8px !important;
-    background-color: rgba(50, 50, 50, 0.9) !important; /* Darker tooltip */
-    color: white !important;
-    border: none !important;
-    border-radius: 4px !important;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.2) !important;
-    white-space: pre-wrap; /* Ensure newlines in title are respected */
-    max-width: 400px; /* Limit tooltip width */
+.debug-btn {
+  padding: 0.5rem 1rem;
+  margin-right: 0.5rem;
+  margin-bottom: 0.5rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.debug-btn:hover {
+  background-color: #0069d9;
+}
+
+.debug-info {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  background-color: #f0f0f0;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+.debug-info p {
+  margin-bottom: 0.25rem;
+}
+.debug-info span {
+  font-family: monospace;
 }
 
 
-/* --- Remove Old Styles --- */
-/* .thought-card, .thought-card::before, .thought-header, .thought-body, .thought-type, .thought-meta no longer needed */
+/* --- D3 Specific Styles --- */
+
+.node {
+  cursor: pointer;
+  transition: transform 0.1s ease-out; /* Smooth transition on drag */
+}
+
+.node circle { /* Default node style */
+  stroke: #666;
+  stroke-width: 1.5px;
+}
+.node:hover circle {
+    stroke-width: 3px;
+}
+
+/* Node type styles */
+.node-main circle {
+  fill: var(--node-main-fill);
+  stroke: var(--node-main-stroke);
+}
+.node-revision circle {
+  fill: var(--node-revision-fill);
+  stroke: var(--node-revision-stroke);
+}
+.node-branch circle {
+  fill: var(--node-branch-fill);
+  stroke: var(--node-branch-stroke);
+}
+
+.node text {
+  font-size: 10px;
+  font-family: sans-serif;
+  fill: #333;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none; /* Allow dragging through text */
+}
+
+.link {
+  stroke-opacity: 0.6;
+  transition: stroke-opacity 0.2s ease;
+}
+.link:hover {
+    stroke-opacity: 1.0;
+}
+
+/* Link type styles */
+.link-linear {
+  stroke: var(--link-linear-color);
+  stroke-width: 2px;
+}
+.link-revision {
+  stroke: var(--link-revision-color);
+  stroke-width: 2px;
+  stroke-dasharray: 4, 4; /* Dashed line for revisions */
+}
+.link-branch {
+  stroke: var(--link-branch-color);
+  stroke-width: 2px;
+}

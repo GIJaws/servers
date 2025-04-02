@@ -4,7 +4,7 @@ import { Server as SocketIOServer, Socket } from "socket.io";
 import path from "path";
 import { fileURLToPath } from "url";
 import chalk from "chalk";
-
+import * as d3 from 'd3';
 // Get current directory for ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,22 +22,27 @@ export interface ThoughtData {
   nextThoughtNeeded: boolean;
 }
 
-// Structure for vis.js nodes and edges
-interface VisNode {
-  id: number | string; // Use thoughtNumber or a composite ID if needed
-  label: string;
-  title: string;
-  group: 'main' | 'revision' | 'branch';
+// --- D3 Data Structures ---
+interface D3Node {
+  id: string; // Use a composite ID for uniqueness: e.g., "main-1", "branchA-5"
+  thoughtNumber: number;
+  group: "main" | "revision" | "branch";
+  label: string; // Short label for display
+  title: string; // Full text for tooltip
+  // D3 simulation manages x, y, vx, vy. fx, fy can be used for fixed positions.
+  fx?: number | null;
+  fy?: number | null;
 }
 
-interface VisEdge {
-  from: number | string;
-  to: number | string;
-  arrows?: string;
-  dashes?: boolean;
-  color?: { color: string };
-  id?: string; // Added for easier deduplication if needed
+
+interface D3Link {
+  source: string; // Source node ID
+  target: string; // Target node ID
+  type: "linear" | "revision" | "branch";
+  id?: string; // Optional unique ID for the link itself
 }
+// --- End D3 Data Structures ---
+
 
 
 export class WebUIServer {
@@ -45,10 +50,13 @@ export class WebUIServer {
   private server: http.Server;
   private io: SocketIOServer;
   private port: number;
-  // Store the original thought data to reconstruct state for new clients
+  // Store the original thought data
   private thoughts: ThoughtData[] = [];
-  // We don't strictly need branches state here if history is enough, but keeping it for now
-  private branches: Record<string, ThoughtData[]> = {};
+  // Store the D3 formatted data for sending initial state
+  private nodes: D3Node[] = [];
+  private links: D3Link[] = [];
+  // Map for quick node lookup by composite ID
+  private nodeMap: Map<string, D3Node> = new Map();
 
   constructor(port: number = 3000) {
     this.port = port;
@@ -58,9 +66,8 @@ export class WebUIServer {
 
     // Set up static file serving from the public directory
     const publicPath = path.join(__dirname, "public");
-    console.error(chalk.blue(`Serving static files from: ${publicPath}`)); // Log path
+    console.error(chalk.blue(`Serving static files from: ${publicPath}`));
     this.app.use(express.static(publicPath));
-
 
     // Default route serves index.html
     this.app.get("/", (req, res) => {
@@ -70,10 +77,7 @@ export class WebUIServer {
     // Set up socket.io connection handler
     this.io.on("connection", (socket: Socket) => {
       console.error(chalk.green("Web UI client connected:"), socket.id);
-
-      // Send current state to the newly connected client
-      this.sendCurrentState(socket);
-
+      this.sendCurrentState(socket); // Send current graph state
       socket.on("disconnect", () => {
         console.error(chalk.yellow("Web UI client disconnected:"), socket.id);
       });
@@ -86,107 +90,124 @@ export class WebUIServer {
     });
   }
 
-  // Helper to create a node object for vis.js
-  private createVisNode(thought: ThoughtData): VisNode {
-    let group: VisNode['group'] = 'main';
-    if (thought.isRevision) group = 'revision';
-    else if (thought.branchFromThought) group = 'branch';
+  // Helper to generate a unique node ID
+  private getNodeId(thought: ThoughtData): string {
+    return thought.branchId ? `${thought.branchId}-${thought.thoughtNumber}` : `main-${thought.thoughtNumber}`;
+  }
 
-    // Use thoughtNumber as ID - assumes uniqueness for now.
-    // If branching causes duplicate numbers, a composite ID like `${thought.branchId}-${thought.thoughtNumber}` might be needed.
-    const nodeId = thought.thoughtNumber;
+  // Helper to create a D3 node object
+  private createD3Node(thought: ThoughtData): D3Node {
+    let group: D3Node["group"] = "main";
+    if (thought.isRevision) group = "revision";
+    else if (thought.branchFromThought) group = "branch";
+
+    const nodeId = this.getNodeId(thought);
 
     return {
       id: nodeId,
-      label: thought.thought.substring(0, 50) + (thought.thought.length > 50 ? '...' : ''), // Truncated label
-      title: `Thought ${thought.thoughtNumber}/${thought.totalThoughts}\nType: ${group}\nRevise: ${thought.revisesThought ?? 'N/A'}\nBranch From: ${thought.branchFromThought ?? 'N/A'}\nBranch ID: ${thought.branchId ?? 'N/A'}\n\n${thought.thought}`, // Tooltip
+      thoughtNumber: thought.thoughtNumber,
       group: group,
+      label: `T${thought.thoughtNumber}` + (thought.branchId ? ` (${thought.branchId.substring(0, 3)})` : ''), // Shorter Label
+      title: `Thought ${thought.thoughtNumber}/${thought.totalThoughts}\nBranch: ${thought.branchId ?? "main"}\nType: ${group}\nRevises: ${thought.revisesThought ?? "N/A"}\nFrom: ${thought.branchFromThought ?? "N/A"}\n\n${thought.thought}`, // Tooltip
+      // fx/fy are null initially, let simulation place them
+      fx: null,
+      fy: null,
     };
   }
 
-  // Helper to calculate edges connecting to a *new* thought
-  private calculateNewEdges(newThought: ThoughtData, history: ThoughtData[]): VisEdge[] {
-    const edges: VisEdge[] = [];
-    const currentId = newThought.thoughtNumber; // Assuming ID = thoughtNumber
+  // Helper to calculate D3 links connecting to a *new* thought
+  private calculateNewD3Links(newThought: ThoughtData): D3Link[] {
+    const linksToAdd: D3Link[] = [];
+    const targetNodeId = this.getNodeId(newThought);
 
-    // 1. Standard Linear Connection (if not a branch start)
-    if (newThought.thoughtNumber > 1 && !newThought.branchFromThought) {
-      // Find the immediately preceding thought number *in the full history*
-      // This simplified approach works if thoughtNumbers are globally sequential *except* for branches.
-      const previousThoughtExists = history.find(t => t.thoughtNumber === newThought.thoughtNumber - 1);
-      if (previousThoughtExists) {
-        const edgeId = `${newThought.thoughtNumber - 1}-${currentId}-linear`;
-        edges.push({ id: edgeId, from: newThought.thoughtNumber - 1, to: currentId, arrows: 'to' });
-      }
-      // Note: More complex logic might be needed if branches restart numbering or interleave heavily.
-      // E.g., find the highest thought number less than currentId within the same branchId (or no branchId).
+    // 1. Standard Linear Connection
+    // Connect to the previous thought number *on the same branch* (or main)
+    const sourceLinearNodeId = newThought.branchId
+      ? `${newThought.branchId}-${newThought.thoughtNumber - 1}`
+      : `main-${newThought.thoughtNumber - 1}`;
+    if (newThought.thoughtNumber > 1 && this.nodeMap.has(sourceLinearNodeId)) {
+      linksToAdd.push({
+        source: sourceLinearNodeId,
+        target: targetNodeId,
+        type: "linear",
+        id: `${sourceLinearNodeId} L> ${targetNodeId}`
+      });
     }
 
     // 2. Branch Connection
+    // Connect from the thought it branched from (which might be on 'main' or another branch)
     if (newThought.branchFromThought) {
-      const edgeId = `${newThought.branchFromThought}-${currentId}-branch`;
-      edges.push({ id: edgeId, from: newThought.branchFromThought, to: currentId, arrows: 'to', color: { color: '#28a745' } }); // Green for branch
+      // Find the actual node ID of the source thought
+      const sourceBranchNode = this.thoughts.find(t => t.thoughtNumber === newThought.branchFromThought && !t.branchId); // Simplification: assumes branches always come from main
+      const sourceBranchNodeId = sourceBranchNode ? this.getNodeId(sourceBranchNode) : `main-${newThought.branchFromThought}`; // Fallback ID structure
+      if (this.nodeMap.has(sourceBranchNodeId)) {
+        linksToAdd.push({
+          source: sourceBranchNodeId,
+          target: targetNodeId,
+          type: "branch",
+          id: `${sourceBranchNodeId} B> ${targetNodeId}`
+        });
+      } else {
+        console.warn(`Could not find source node ID ${sourceBranchNodeId} for branching`);
+      }
     }
 
     // 3. Revision Connection
+    // Connect *from* the current thought *to* the thought being revised
     if (newThought.isRevision && newThought.revisesThought) {
-      const edgeId = `${currentId}-${newThought.revisesThought}-revision`;
-      edges.push({ id: edgeId, from: currentId, to: newThought.revisesThought, arrows: 'to', dashes: true, color: { color: '#ffc107' } }); // Yellow/Orange for revision
+      // Find the actual node ID of the target thought being revised
+      const targetRevisionNode = this.thoughts.find(t => t.thoughtNumber === newThought.revisesThought); // Assume revised node exists
+      const targetRevisionNodeId = targetRevisionNode ? this.getNodeId(targetRevisionNode) : `main-${newThought.revisesThought}`; // Fallback ID structure
+      if (this.nodeMap.has(targetRevisionNodeId)) {
+        linksToAdd.push({
+          source: targetNodeId, // Link goes FROM the revision node
+          target: targetRevisionNodeId, // TO the node being revised
+          type: "revision",
+          id: `${targetNodeId} R> ${targetRevisionNodeId}`
+        });
+      } else {
+        console.warn(`Could not find target node ID ${targetRevisionNodeId} for revision`);
+      }
     }
 
-    return edges;
+    return linksToAdd;
   }
 
   public updateThought(thoughtData: ThoughtData): void {
-    // Store the original thought data
+    // Store original data
     this.thoughts.push(thoughtData);
 
-    // Update branches record (might still be useful for stats or complex logic later)
-    if (thoughtData.branchFromThought && thoughtData.branchId) {
-      if (!this.branches[thoughtData.branchId]) {
-        this.branches[thoughtData.branchId] = [];
-      }
-      this.branches[thoughtData.branchId].push(thoughtData);
+    // Create D3 representations
+    const newNode = this.createD3Node(thoughtData);
+    const newLinks = this.calculateNewD3Links(thoughtData); // Calculate based on current thought
+
+    // Update internal state *before* emitting
+    if (!this.nodeMap.has(newNode.id)) {
+      this.nodes.push(newNode);
+      this.nodeMap.set(newNode.id, newNode);
+      this.links.push(...newLinks); // Assumes links are unique enough or frontend handles duplicates
+
+      // Broadcast only the delta
+      this.io.emit("thoughtAdded", { newNode, newLinks });
+      console.error(chalk.cyan(`Emitted thoughtAdded: Node ID ${newNode.id}, ${newLinks.length} Links`));
+    } else {
+      console.warn(`Node with ID ${newNode.id} already exists. Update logic not fully implemented yet.`);
+      // Implement node update logic if needed (e.g., changing label/tooltip)
+      // Find existing node, update properties, emit 'thoughtUpdated' event?
     }
-
-    // Create the vis.js representation for the *new* thought
-    const newNode = this.createVisNode(thoughtData);
-    // Calculate edges connecting *to* this new thought based on history
-    const newEdges = this.calculateNewEdges(thoughtData, this.thoughts);
-
-    // Broadcast only the delta (new node and edges)
-    this.io.emit('thoughtAdded', { newNode, newEdges });
   }
 
   private sendCurrentState(socket: Socket): void {
-    // Generate full graph state from the stored thoughts history
-    const allNodes: VisNode[] = [];
-    const allEdgesMap = new Map<string, VisEdge>(); // Use Map for deduplication
-
-    this.thoughts.forEach((thought) => {
-      // Add node
-      allNodes.push(this.createVisNode(thought));
-
-      // Calculate and add edges for this thought
-      const edges = this.calculateNewEdges(thought, this.thoughts);
-      edges.forEach(edge => {
-        // Use a consistent ID format for deduplication
-        const edgeKey = edge.id || `${edge.from}-${edge.to}-${edge.dashes}-${edge.color?.color}`;
-        if (!allEdgesMap.has(edgeKey)) {
-          allEdgesMap.set(edgeKey, edge);
-        }
-      });
-    });
-
-    const allEdges = Array.from(allEdgesMap.values());
-
-    console.error(chalk.blue(`Sending initial state to ${socket.id}: ${allNodes.length} nodes, ${allEdges.length} edges`));
-    socket.emit('init', { nodes: allNodes, edges: allEdges });
+    // Send the *current* snapshot of D3 nodes and links
+    console.error(
+      chalk.blue(`Sending initial state to ${socket.id}: ${this.nodes.length} nodes, ${this.links.length} links`)
+    );
+    socket.emit("init", { nodes: this.nodes, links: this.links });
   }
 
   public close(): void {
-    this.io.close(); // Close socket connections
-    this.server.close(); // Close HTTP server
+    this.io.close();
+    this.server.close();
     console.error(chalk.red("Web UI server closed."));
   }
 }
